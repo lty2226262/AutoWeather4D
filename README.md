@@ -2,7 +2,7 @@
 
 <p align="center">
   <a href="https://lty2226262.github.io/autoweather4d/"><img src="https://img.shields.io/badge/Project%20Page-F78100?style=plastic&logo=google-chrome&logoColor=white" alt="Project Page"></a>
-  <a href="#"><img src="https://img.shields.io/badge/Paper-00AEEF?style=plastic&logo=arxiv&logoColor=white" alt="Paper (Coming Soon)"></a>
+  <a href="https://arxiv.org/abs/2603.26546"><img src="https://img.shields.io/badge/Paper-00AEEF?style=plastic&logo=arxiv&logoColor=white" alt="Paper"></a>
 </p>
 
 <div align="center">
