@@ -31,5 +31,5 @@ img_dir_to_video.py
 *.npz
 *.h5
 *.avi
-3rd/
+
 SegFormer/
