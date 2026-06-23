@@ -1,0 +1,25 @@
+render:
+  # Snow (lighter ground accumulation than default config)
+  snow_preset: moderate_snow
+  snow_amount: 0.8
+  max_points: 100000
+  grid_snow_enabled: true
+  grid_snow_density: 0.6
+
+  # Rain
+  dt: 0.1
+
+  # Fog
+  fog_density: 0.75
+
+  # Night
+  sky_darkening_factor: 0.25
+  enable_car_lights: true
+  enable_emissive: false
+
+forward:
+  diffusion_root: 3rd/cosmos-transfer1-diffusion-renderer
+  envlight_ind: 0
+  conda_env: autoweather4d
+
+quiet: false

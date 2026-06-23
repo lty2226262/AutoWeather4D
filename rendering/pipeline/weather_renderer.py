@@ -177,6 +177,7 @@ class WeatherRenderer:
                     h5_file=str(self.h5_file),
                     enable_lights=True,
                     enable_emissive=True,
+                    density_scale=cfg.fog.fog_density,
                 )
             if flags.use_night:
                 print("\nInitializing LIGHT effect: Night")
@@ -188,11 +189,7 @@ class WeatherRenderer:
                 )
 
         if not flags.use_forward_relight:
-            self.brdf = CookTorranceBRDF(
-                override_device=self.device,
-                use_fog=flags.use_fog,
-                density_scale=cfg.fog.fog_density if flags.use_fog else 1.0,
-            )
+            self.brdf = CookTorranceBRDF()
 
     def _print_summary(self, ctx: RenderContext) -> None:
         """Print a short completion summary to stdout.

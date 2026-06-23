@@ -1,0 +1,62 @@
+render:
+  # Snow
+  snow_preset: moderate_snow
+  snow_amount: 2.0
+  max_points: 100000
+  grid_snow_enabled: true
+  grid_snow_density: 1.0
+
+  # Rain
+  dt: 0.1
+
+  # Fog
+  fog_density: 0.75
+
+  # Night
+  sky_darkening_factor: 0.25
+  enable_car_lights: true
+  enable_emissive: false
+
+# Pipeline output: keep only the final mp4 by default.
+keep_intermediates: false
+
+# Per-scene relit/blend overrides (merged by weather in run.py)
+scenes:
+  _default:
+    fog:
+      relit_preprocess_strength: 0.3
+      relit_sky_darkening_factor: 1.0
+      img2_strength: 2.0
+      ground_brdf_min_weight: 0.0
+    night:
+      relit_preprocess_strength: 0.5
+      img2_strength: 3.5
+      ground_brdf_min_weight: 0.65
+  "002":
+    fog:
+      relit_preprocess_strength: 0.35
+      relit_sky_darkening_factor: 0.45
+
+# DiffusionRenderer forward: modified G-buffer + cloudy HDR -> final video
+forward:
+  diffusion_root: 3rd/cosmos-transfer1-diffusion-renderer
+  envlight_ind: 0
+  conda_env: autoweather4d
+  seed: 1000
+
+# VidRefiner: Canny edges + Wan2.2 V2V SDEdit
+refine:
+  enabled: true
+  weathers: [fog, night, rain, snow]
+  videox_root: 3rd/VideoX-Fun
+  conda_env: autoweather4d
+  strength: 0.4
+  strength_by_weather:
+    fog: 0.4
+    night: 0.4
+    rain: 0.05
+    snow: 0.9
+  seed: 50
+  video_length: 57
+  low_threshold: 40
+  high_threshold: 80

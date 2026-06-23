@@ -10,90 +10,14 @@ import torch
 import torch.nn.functional as F
 
 from rendering.effects.geometry.rain_effects import RainPuddleSimulator
-from rendering.effects.geometry.snow_effects import (
-    SnowGBufferModifierSurfaceBRDF,
-    create_snow_presets,
-)
+from rendering.effects.geometry.snow_config import SnowModifierConfig
+from rendering.effects.geometry.snow_effects import SnowGBufferModifierSurfaceBRDF
 from rendering.gbuffer.material import Material, MaterialVideo
-
-
-def _snow_modifier_params(
-    base_params: dict[str, Any],
-    material_video: MaterialVideo,
-    dataset_id: int | None,
-) -> dict[str, Any]:
-    """Map merged snow preset params to ``SnowGBufferModifierSurfaceBRDF`` kwargs.
-
-    Args:
-        base_params: Merged snow preset dictionary.
-        material_video: Scene source used to resolve an optional dataset id.
-        dataset_id: Explicit dataset id override.
-
-    Returns:
-        Keyword arguments for ``SnowGBufferModifierSurfaceBRDF``.
-    """
-    resolved_dataset_id = dataset_id if dataset_id is not None else material_video.dataset_id
-    return {
-        "mb_cascade": base_params.get("mb_cascade", 3),
-        "b": base_params.get("b", 1.5),
-        "interval": base_params.get("interval", 0.5),
-        "k_neighbors": base_params.get("k_neighbors", 16),
-        "height_scale": base_params.get("height_scale", 0.8),
-        "normal_slope_scale": base_params.get("normal_slope_scale", 4.0),
-        "normal_slope_max_deg": base_params.get("normal_slope_max_deg", 65),
-        "amp_decay": base_params.get("amp_decay", 0.7),
-        "blend_weight": base_params.get("blend_weight", 8.0),
-        "blend_bias": base_params.get("blend_bias", 0.03),
-        "cover_hard": base_params.get("cover_hard", True),
-        "cover_threshold": base_params.get("cover_threshold", 0.45),
-        "cover_gamma": base_params.get("cover_gamma", 0.9),
-        "normal_min_slope": base_params.get("normal_min_slope", 0.1),
-        "normal_min_cover": base_params.get("normal_min_cover", 0.25),
-        "displace": base_params.get("displace", False),
-        "displacement_scale": base_params.get("displacement_scale", 0.3),
-        "snow_albedo_value": base_params.get("snow_albedo_value", 1.0),
-        "snow_roughness_value": base_params.get("snow_roughness_value", 0.6),
-        "wet_ground_enabled": base_params.get("wet_ground_enabled", False),
-        "wet_ground_intensity": base_params.get("wet_ground_intensity", 0.5),
-        "wet_ground_porosity": base_params.get("wet_ground_porosity", 0.8),
-        "wet_ground_roughness_factor": base_params.get("wet_ground_roughness_factor", 0.1),
-        "grid_snow_enabled": base_params.get("grid_snow_enabled", True),
-        "grid_snow_resolution": base_params.get("grid_snow_resolution", 8192),
-        "grid_snow_density": base_params.get("grid_snow_density", 1.0),
-        "grid_snow_height": base_params.get("grid_snow_height", 0.08),
-        "grid_snow_albedo": base_params.get("grid_snow_albedo", 1.5),
-        "grid_snow_roughness": base_params.get("grid_snow_roughness", 0.6),
-        "grid_snow_metallic": base_params.get("grid_snow_metallic", 0.0),
-        "grid_snow_eps": base_params.get("grid_snow_eps", 1e-3),
-        "grid_snow_exclusive": base_params.get("grid_snow_exclusive", True),
-        "grid_snow_seed": base_params.get("grid_snow_seed", 42),
-        "dataset_id": resolved_dataset_id,
-        "snowfall_enabled": base_params.get("snowfall_enabled", True),
-        "snowfall_use_world_particles": base_params.get("snowfall_use_world_particles", True),
-        "snowfall_affect_normal": base_params.get("snowfall_affect_normal", True),
-        "snowfall_affect_depth": base_params.get("snowfall_affect_depth", True),
-        "snowfall_depth_test": base_params.get("snowfall_depth_test", True),
-        "snowfall_depth_near": base_params.get("snowfall_depth_near", 0.15),
-        "snowfall_opacity": base_params.get("snowfall_opacity", 0.85),
-        "snowfall_roughness": base_params.get("snowfall_roughness", 0.7),
-        "snowfall_num_particles": base_params.get("snowfall_num_particles", 15000),
-        "snowfall_box_size": base_params.get("snowfall_box_size", 100.0),
-        "snowfall_gravity": base_params.get("snowfall_gravity", 5.0),
-        "snowfall_wind_world_x": base_params.get("snowfall_wind_world_x", 0.6),
-        "snowfall_wind_world_z": base_params.get("snowfall_wind_world_z", 0.2),
-        "snowfall_radius_world": base_params.get("snowfall_radius_world", 0.1),
-        "snowfall_seed": base_params.get("snowfall_seed", 12345),
-        "car_mask_max_snow_amount": base_params.get("car_mask_max_snow_amount", 0.35),
-        "non_grid_force_ground_snow": base_params.get("non_grid_force_ground_snow", False),
-        "non_grid_disable_normal_filter": base_params.get("non_grid_disable_normal_filter", False),
-        "non_grid_ground_quantile": base_params.get("non_grid_ground_quantile", 0.45),
-    }
 
 
 def _prewarm_world_falling_snow(
     modifier: SnowGBufferModifierSurfaceBRDF,
     material_video: MaterialVideo,
-    modifier_params: dict[str, Any],
 ) -> None:
     """Seed world-space falling-snow particles from the first frame pose."""
     if not (modifier.snowfall_enabled and modifier.snowfall_use_world_particles):
@@ -101,13 +25,13 @@ def _prewarm_world_falling_snow(
     if len(material_video) == 0:
         return
     modifier.init_falling_snow_particles(
-        num_particles=modifier_params["snowfall_num_particles"],
-        box_size=modifier_params["snowfall_box_size"],
-        gravity=modifier_params["snowfall_gravity"],
-        wind_x=modifier_params["snowfall_wind_world_x"],
-        wind_z=modifier_params["snowfall_wind_world_z"],
-        radius=modifier_params["snowfall_radius_world"],
-        seed=modifier_params["snowfall_seed"],
+        num_particles=modifier.falling_snow_num,
+        box_size=modifier.falling_snow_box_size,
+        gravity=modifier.falling_snow_gravity,
+        wind_x=modifier.falling_snow_wind_x,
+        wind_z=modifier.falling_snow_wind_z,
+        radius=modifier.falling_snow_radius,
+        seed=modifier.falling_snow_seed,
         pose=material_video[0].pose,
     )
 
@@ -312,17 +236,16 @@ class GeometryEffectsManager:
         Returns:
             ``self`` for chaining.
         """
-        presets = create_snow_presets()
-        base_params = presets.get(preset, presets["moderate_snow"]).copy()
-        base_params.update(snow_params)
-        modifier_params = _snow_modifier_params(base_params, material_video, dataset_id)
-
-        self.snow_modifier = SnowGBufferModifierSurfaceBRDF(
+        config = SnowModifierConfig.from_preset(
+            preset,
+            material_video,
             device=str(self.device),
-            **modifier_params,
+            dataset_id=dataset_id,
+            **snow_params,
         )
+        self.snow_modifier = SnowGBufferModifierSurfaceBRDF(config)
         self.snow_modifier.initialize_from_all_frames(material_video, max_points=max_points)
-        _prewarm_world_falling_snow(self.snow_modifier, material_video, modifier_params)
+        _prewarm_world_falling_snow(self.snow_modifier, material_video)
 
         self.snow_initialized = self.snow_modifier.is_initialized
         return self

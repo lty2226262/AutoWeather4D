@@ -17,6 +17,7 @@ from rendering.color.lut import linear_blend_images, preprocess_relit_frame
 from rendering.gbuffer.material import Material, MaterialVideo
 from rendering.pipeline.progress import update_frame_progress
 from rendering.pipeline.render_context import RenderContext
+from rendering.pipeline.light_effects import load_relit_frames_from_h5
 from rendering.pipeline.render_host import BrdfPipelineHost
 
 
@@ -83,7 +84,6 @@ def _gather_lights(
     host: BrdfPipelineHost,
     ctx: RenderContext,
     frame_idx: int,
-    material: Material,
 ) -> tuple[list[dict[str, Any]] | None, torch.Tensor | None]:
     """Collect dynamic lights and emission for the current frame.
 
@@ -91,7 +91,6 @@ def _gather_lights(
         host: Initialized fog/night pipeline host with a light manager.
         ctx: Current render context.
         frame_idx: Zero-based frame index.
-        material: Per-frame material buffers.
 
     Returns:
         Tuple of ``(lights, emission)``. Either value may be ``None``.
@@ -99,17 +98,13 @@ def _gather_lights(
     lights: list[dict[str, Any]] | None = None
     emission: torch.Tensor | None = None
     if ctx.flags.use_fog:
-        fog_emission, fog_lights = host.light_manager.apply_fog_to_material(
-            material, frame_idx=frame_idx
-        )
+        fog_emission, fog_lights = host.light_manager.apply_fog_to_material(frame_idx=frame_idx)
         if fog_emission is not None:
             emission = fog_emission
         if fog_lights is not None:
             lights = fog_lights
     if ctx.flags.use_night:
-        night_emission, night_lights = host.light_manager.apply_night_to_material(
-            material, frame_idx=frame_idx
-        )
+        night_emission, night_lights = host.light_manager.apply_night_to_material(frame_idx=frame_idx)
         if night_emission is not None:
             emission = night_emission
         if night_lights is not None:
@@ -149,7 +144,6 @@ def _shade_brdf(
             depth,
             material.position,
             lights=lights,
-            frame_idx=frame_idx,
         )
 
     color = Material.linear_to_srgb(brdf_linear.clamp(0, 1))
@@ -171,7 +165,7 @@ def _load_relit_frames(
     Returns:
         List of RGB uint8 frames, or ``None`` when the relit group is missing.
     """
-    frames = host.light_manager._load_relit_frames_from_h5(str(host.h5_file), mix.h5_group)
+    frames = load_relit_frames_from_h5(str(host.h5_file), mix.h5_group)
     if frames is None:
         print(f"Warning: relit group '{mix.h5_group}' not found in {host.h5_file}")
     return frames
@@ -239,7 +233,7 @@ def _render_frame(
         Output frame in HWC uint8 layout.
     """
     material = host.material_video[frame_idx]
-    lights, emission = _gather_lights(host, ctx, frame_idx, material)
+    lights, emission = _gather_lights(host, ctx, frame_idx)
     color = _shade_brdf(host, ctx, frame_idx, material, lights, emission)
     frame_np = _tensor_to_uint8_hwc(color)
     if use_mix and mix is not None and relit_frames is not None:

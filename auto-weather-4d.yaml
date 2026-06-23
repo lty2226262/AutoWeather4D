@@ -14,7 +14,7 @@
 # limitations under the License.
 
 # conda env create --file cosmos-predict1.yaml
-name: auto4d
+name: autoweather4d
 channels:
   - conda-forge
 dependencies:

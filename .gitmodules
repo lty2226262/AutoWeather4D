@@ -1,3 +1,6 @@
 [submodule "3rd/cosmos-transfer1-diffusion-renderer"]
     path = 3rd/cosmos-transfer1-diffusion-renderer
     url = git@github.com:lty2226262/cosmos-transfer1-diffusion-renderer.git
+[submodule "3rd/VideoX-Fun"]
+    path = 3rd/VideoX-Fun
+    url = git@github.com:lty2226262/VideoX-Fun.git

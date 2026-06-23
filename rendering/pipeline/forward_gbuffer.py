@@ -49,12 +49,10 @@ def _apply_geometry(
     if flags.use_snow and host.geometry_manager is not None:
         host.geometry_manager.apply_snow(
             material,
-            frame_idx=frame_idx,
             snow_amount=cfg.snow.snow_amount,
         )
     if flags.use_rain and host.geometry_manager is not None:
         host.geometry_manager.apply_rain(
-            material,
             frame_idx=frame_idx,
             time=frame_idx * cfg.rain.dt,
         )

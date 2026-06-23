@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from pathlib import Path
+
+from rendering.subprocess_utils import run_with_live_output
 
 DIFFUSION_ROOT = (
     Path(__file__).resolve().parents[1] / "3rd/cosmos-transfer1-diffusion-renderer"
@@ -35,7 +36,8 @@ def run_forward_render(
     diffusion_root: str | Path = DIFFUSION_ROOT,
     checkpoint_dir: str | None = None,
     envlight_ind: int = 0,
-    conda_env: str = "cosmos-predict1",
+    conda_env: str = "autoweather4d",
+    seed: int = 1000,
 ) -> Path:
     """Relight modified G-buffer frames; envlight_ind=0 uses asset/hdris/cloudy.hdr."""
     diffusion_root = Path(diffusion_root).resolve()
@@ -46,30 +48,29 @@ def run_forward_render(
 
     env = os.environ.copy()
     env["PYTHONPATH"] = str(diffusion_root)
-    if "CONDA_PREFIX" in env:
-        env["CUDA_HOME"] = env["CONDA_PREFIX"]
+    if not env.get("CUDA_HOME"):
+        for candidate in ("/usr/local/cuda", "/usr/local/cuda-12.8", "/usr/local/cuda-12"):
+            if Path(candidate).exists():
+                env["CUDA_HOME"] = candidate
+                break
 
-    result = subprocess.run(
+    run_with_live_output(
         [
-            "conda", "run", "-n", conda_env, "python", FORWARD_SCRIPT,
+            "conda", "run", "--no-capture-output", "-n", conda_env, "python", "-u", FORWARD_SCRIPT,
             "--checkpoint_dir", checkpoint_dir or str(diffusion_root / "checkpoints"),
             "--diffusion_transformer_dir", FORWARD_MODEL,
             "--dataset_path", str(gbuffer_dir),
             "--num_video_frames", str(num_frames),
             "--use_custom_envmap", "True",
             "--envlight_ind", str(envlight_ind),
+            "--seed", str(seed),
             "--video_save_folder", str(output_dir),
             "--save_image", "False",
         ],
-        cwd=str(diffusion_root),
+        cwd=diffusion_root,
         env=env,
-        capture_output=True,
-        text=True,
-        check=False,
+        label="DiffusionRenderer forward (Cosmos 7B)",
     )
-    if result.returncode != 0:
-        log = (result.stderr or result.stdout or "")[-4000:]
-        raise RuntimeError(f"DiffusionRenderer forward failed:\n{log}")
 
     for pattern in (f"*.relit_{envlight_ind:04d}.mp4", "*.relit_*.mp4"):
         matches = sorted(output_dir.glob(pattern))
